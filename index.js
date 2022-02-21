@@ -18,45 +18,32 @@ function drawMove(player, x, y) {
     ctx.fillText(player, (x + 0.15) * boxSize, (y + 0.85) * boxSize);
 }
 function checkWinner() {
-    let winning = [];
     for (let i = 0; i < 3; ++i) {
-        winning.push([
-            [i, 0],
-            [i, 1],
-            [i, 2],
-        ]);
-    }
-    for (let j = 0; j < 3; ++j) {
-        winning.push([
-            [0, j],
-            [1, j],
-            [2, j],
-        ]);
-    }
-    winning.push([
-        [0, 0],
-        [1, 1],
-        [2, 2],
-    ]);
-    winning.push([
-        [0, 2],
-        [1, 1],
-        [2, 0],
-    ]);
-    for (let w of winning) {
-        if (w.every(([x, y]) => board[x][y] == "X") ||
-            w.every(([x, y]) => board[x][y] == "O")) {
-            return w;
+        for (let j = 0; j < 3; ++j) {
+            let ijPlayer = board[i][j];
+            if (ijPlayer == null) {
+                continue;
+            }
+            let adjs = [
+                [i, j - 1],
+                [i - 1, j],
+                [i + 1, j],
+                [i, j + 1],
+            ];
+            for (let [x, y] of adjs) {
+                if (x >= 0 && x < 3 && y >= 0 && y < 3 && board[x][y] == ijPlayer) {
+                    return otherPlayer(ijPlayer);
+                }
+            }
         }
     }
+    return null;
 }
-function drawWinner(x1, y1, x2, y2) {
-    ctx.beginPath();
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = boxSize / 6;
-    ctx.moveTo((x1 + 0.5) * boxSize, (y1 + 0.5) * boxSize);
-    ctx.lineTo((x2 + 0.5) * boxSize, (y2 + 0.5) * boxSize);
-    ctx.stroke();
+function showWinner(p) {
+    document.getElementById("info").innerHTML = `${p} wins!`;
+}
+function showComputerWinner(p) {
+    document.getElementById("info").innerHTML = `Computer calculated game result: ${p}`;
 }
 function otherPlayer(p) {
     if (p == "O") {
@@ -89,8 +76,10 @@ function nextMove(current) {
         for (let y = 0; y < 3; ++y) {
             if (board[x][y] == null) {
                 board[x][y] = current;
-                if (checkWinner() != undefined) {
-                    bestOutcome = { x, y, winner: current };
+                if (checkWinner() != null) {
+                    if (bestOutcome == null) {
+                        bestOutcome = { x, y, winner: otherPlayer(current) };
+                    }
                 }
                 else {
                     let nextOutcome = nextMove(otherPlayer(current));
@@ -121,10 +110,15 @@ function paintCanvas() {
     drawGridLine(0, 2, 3, 2);
     drawGridLine(1, 0, 1, 3);
     drawGridLine(2, 0, 2, 3);
-    let computerMove = { x: 1, y: 0 };
+    let computerMove = nextMove("O");
+    showComputerWinner(computerMove.winner);
     drawMove("O", computerMove.x, computerMove.y);
     board[computerMove.x][computerMove.y] = "O";
+    let gameOver = false;
     c.addEventListener("click", (e) => {
+        if (gameOver) {
+            return;
+        }
         let r = c.getBoundingClientRect();
         let x = Math.floor(((e.clientX - r.left) / r.width) * 3);
         let y = Math.floor(((e.clientY - r.top) / r.width) * 3);
@@ -132,16 +126,23 @@ function paintCanvas() {
             drawMove("X", x, y);
             board[x][y] = "X";
             let winner = checkWinner();
-            if (winner != undefined) {
-                drawWinner(...winner[0], ...winner[2]);
+            if (winner != null) {
+                showWinner(winner);
+                gameOver = true;
+                return;
             }
             let computerMove = nextMove("O");
             if (computerMove != null) {
                 drawMove("O", computerMove.x, computerMove.y);
                 board[computerMove.x][computerMove.y] = "O";
                 let winner = checkWinner();
-                if (winner != undefined) {
-                    drawWinner(...winner[0], ...winner[2]);
+                if (winner != null) {
+                    showWinner(winner);
+                    gameOver = true;
+                    return;
+                }
+                else {
+                    showComputerWinner(computerMove.winner);
                 }
             }
         }
